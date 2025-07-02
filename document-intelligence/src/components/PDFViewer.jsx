@@ -112,7 +112,7 @@
 // // // //       .then(res =>res.blob())
 // // // //       .then(blob => {
 // // // //         console.log(blob);
-        
+
 // // // //         const file = new File([blob], 'sample.pdf', { type: 'application/pdf' });
 // // // //         setPdfFile(file);
 // // // //       });
@@ -556,7 +556,7 @@
 // }
 
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState ,useRef} from 'react';
 import { Worker, Viewer } from '@react-pdf-viewer/core';
 import '@react-pdf-viewer/core/lib/styles/index.css';
 import '@react-pdf-viewer/default-layout/lib/styles/index.css';
@@ -575,6 +575,8 @@ export default function PDFViewer({ fileUrl }) {
   const [response, setresponse] = useState('');
   const [loadingoutput, setLoadingoutput] = useState(false);
   const [pdfUrl, setPdfUrl] = useState(null);
+  const fileInputRef = useRef(null);
+  const [fileName, setFileName] = useState(null);
 
   const defaultLayoutPluginInstance = defaultLayoutPlugin();
   const typedResponse = useTypewriter(response);
@@ -588,30 +590,32 @@ export default function PDFViewer({ fileUrl }) {
   };
 
   const extractTextFromPDF = async (blob) => {
-  const arrayBuffer = await blob.arrayBuffer();
-  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    const arrayBuffer = await blob.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
 
-  let fullText = '';
+    let fullText = '';
 
-  for (let i = 1; i <= pdf.numPages; i++) {
-    const page = await pdf.getPage(i);
-    const content = await page.getTextContent();
-    const strings = content.items.map((item) => item.str);
-    fullText += strings.join(' ') + '\n\n';
-  }
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      const strings = content.items.map((item) => item.str);
+      fullText += strings.join(' ') + '\n\n';
+    }
 
-  return fullText;
-};
+    return fullText;
+  };
   // Fetch PDF as Blob
   useEffect(() => {
-    fetch(pdfUrl)
-      .then((res) => res.blob())
-      .then(async (blob) => {
-        const url = URL.createObjectURL(blob);
-        setPdfBlobUrl(url);
-         const text = await extractTextFromPDF(blob);
-         setfulldoc(text);
-      });
+    if (pdfUrl) {
+      fetch(pdfUrl)
+        .then((res) => res.blob())
+        .then(async (blob) => {
+          const url = URL.createObjectURL(blob);
+          setPdfBlobUrl(url);
+          const text = await extractTextFromPDF(blob);
+          setfulldoc(text);
+        });
+    }
   }, [pdfUrl]);
 
   // Listen to mouseup for text selection
@@ -620,7 +624,7 @@ export default function PDFViewer({ fileUrl }) {
   //     const text = window.getSelection().toString();
   //     if (text.trim()) {
   //       console.log(text);
-        
+
   //       setSelectedText(text);
   //       setoutput('');
   //     }
@@ -629,21 +633,58 @@ export default function PDFViewer({ fileUrl }) {
   //   return () => document.removeEventListener('mouseup', handleMouseUp);
   // }, []);
   useEffect(() => {
-  const handleMouseUp = (e) => {
-    const pdfArea = document.getElementById("pdf-container");
-    if (pdfArea && pdfArea.contains(e.target)) {
-      const text = window.getSelection().toString();
-      if (text.trim()) {
-        setSelectedText(text);
-        setoutput('');
+    const handleMouseUp = (e) => {
+      const pdfArea = document.getElementById("pdf-container");
+      if (pdfArea && pdfArea.contains(e.target)) {
+        const text = window.getSelection().toString();
+        if (text.trim()) {
+          setSelectedText(text);
+          setoutput('');
+        }
       }
+    };
+
+    document.addEventListener('mouseup', handleMouseUp);
+    return () => document.removeEventListener('mouseup', handleMouseUp);
+  }, []);
+
+
+
+  const handleFile = (file) => {
+    if (file.type === 'application/pdf') {
+      const blobUrl = URL.createObjectURL(file);
+      setPdfUrl(blobUrl);
+      setFileName(file.name);
+    } else {
+      alert('Only PDF files are supported.');
     }
   };
 
-  document.addEventListener('mouseup', handleMouseUp);
-  return () => document.removeEventListener('mouseup', handleMouseUp);
-}, []);
-  
+  const handleInputChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) handleFile(file);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const file = e.dataTransfer.files?.[0];
+    if (file) handleFile(file);
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const reset = () => {
+    setPdfUrl(null);
+    setFileName(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   // Summarize Handler
   const handleSummarize = async () => {
     if (!selectedText) return;
@@ -663,17 +704,17 @@ export default function PDFViewer({ fileUrl }) {
   };
   const handlePrompt = async () => {
     try {
-      console.log(selectedText,prompt);
+      console.log(selectedText, prompt);
       setresponse("Loading...");
       const text = selectedText || fulldoc;
-      const response = await fetch('https://symmetrical-carnival-pjgpwgvjx7rxf6q4q-8000.app.github.dev/prompt', {
+      const response = await fetch('https://verbose-adventure-g4pqgg9r54j4cv4xr-8000.app.github.dev/prompt', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ selectedText:text,prompt: prompt }),
+        body: JSON.stringify({ selectedText: text, prompt: prompt }),
       });
       const data = await response.json();
       console.log(data);
-      
+
       setresponse(data.response || 'No output returned.');
       setSelectedText(null);
     } catch (err) {
@@ -701,9 +742,9 @@ export default function PDFViewer({ fileUrl }) {
         <div className="mt-4 bg-transparent p-3 rounded-lg text-md text-gray-800 whitespace-pre-wrap min-h-[80%] overflow-y-auto bottom-0 ">
           {response && <ReactMarkdown remarkPlugins={[remarkGfm]}>{typedResponse}</ReactMarkdown>}</div>
         <div className="p-2 border max-h-[15%] min-h-fit   bottom-0 bg-white rounded-lg shadow text-sm text-gray-800 whitespace-pre-wrap">
-              <textarea name="" id="" value={prompt} onChange={(e) => setPrompt(e.target.value)} className='w-full h-full text-lg border-none bg-transparent outline-none  ' placeholder='Ask anything' ></textarea><br />
-            </div>
-              <button className='mt-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700' onClick={handlePrompt} >Send</button>
+          <textarea name="" id="" value={prompt} onChange={(e) => setPrompt(e.target.value)} className='w-full h-full text-lg border-none bg-transparent outline-none  ' placeholder='Ask anything' ></textarea><br />
+        </div>
+        <button className='mt-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700' onClick={handlePrompt} >Send</button>
         {/* {selectedText ? (
           <>
             <p className="text-sm text-gray-600 mb-1">Selected Text:</p>
@@ -733,25 +774,67 @@ export default function PDFViewer({ fileUrl }) {
         )} */}
       </div>
     </div>
-    ) : (
+  ) : (
           <>
-          <input type="file" accept="application/pdf" onChange={handleFileChange} className="mb-4" />
-          <p className="text-gray-500">Upload a PDF file to view.</p></>
-        )
-  );
+
+
+
+      <div className="p-4 max-w-3xl mx-auto w-full h-svh flex flex-col justify-center items-center">
+        <label
+          onDrop={handleDrop}
+          onDragOver={handleDragOver}
+          className="block border-2 border-dashed border-gray-300 rounded-xl p-8 text-center bg-gray-50 hover:bg-gray-100 transition-colors duration-200 cursor-pointer"
+        >
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="application/pdf"
+            onChange={handleInputChange}
+            className="hidden"
+          />
+          <p className="text-gray-700">
+            <strong>Click to upload</strong> or <strong>drag & drop</strong> a PDF file here
+          </p>
+        </label>
+
+        {fileName && (
+          <div className="mt-4 flex justify-between items-center">
+            <p className="text-sm text-gray-700">📄 {fileName}</p>
+            <button
+              onClick={reset}
+              className="text-red-600 hover:underline text-sm"
+            >
+              ❌ Clear
+            </button>
+          </div>
+        )}
+</div>
+
+
+
+
+        {/* <div className='w-full h-svh flex flex-col justify-center items-center p-2 border-2 border-black rounded-xl' >
+          <input type="file" accept="application/pdf" onChange={handleFileChange} className="" ></input>
+            <div className='flex flex-col justify-center items-center p-2 border-2 border-black rounded-xl' >
+              <p className="text-gray-500">Upload a PDF file to view.</p>
+            </div>
+        </div> */}
+      </>
+      )
+      );
 }
 
 
-export function useTypewriter(text, speed = 20) {
+      export function useTypewriter(text, speed = 20) {
   const [displayedText, setDisplayedText] = useState('');
 
   useEffect(() => {
     if (!text) return;
 
-    setDisplayedText('');
-    let i = 0;
+      setDisplayedText('');
+      let i = 0;
     const interval = setInterval(() => {
-      setDisplayedText((prev) => prev + text[i]);
+        setDisplayedText((prev) => prev + text[i]);
       i++;
       if (i >= text.length) clearInterval(interval);
     }, speed);
@@ -759,5 +842,8 @@ export function useTypewriter(text, speed = 20) {
     return () => clearInterval(interval);
   }, [text, speed]);
 
-  return displayedText;
+      return displayedText;
 }
+
+
+
