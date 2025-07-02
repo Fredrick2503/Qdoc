@@ -51,15 +51,18 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # ✅ Use OpenRouter.ai credentials
-openai.api_key = os.getenv("OPENROUTER_API_KEY")
+openai.api_key = "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"
 openai.api_base = "https://openrouter.ai/api/v1"
-
+print(openai.api_key)
 app = FastAPI()
 
 # Allow CORS from any frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    # allow_origins=["*"],
+    allow_origins=[
+        "https://symmetrical-carnival-pjgpwgvjx7rxf6q4q-3000.app.github.dev"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

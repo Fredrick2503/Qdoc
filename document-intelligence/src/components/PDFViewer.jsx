@@ -651,7 +651,6 @@ export default function PDFViewer({ fileUrl }) {
     try {
       const response = await fetch('http://localhost:8000/summarize', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: selectedText }),
       });
       const data = await response.json();
@@ -667,7 +666,7 @@ export default function PDFViewer({ fileUrl }) {
       console.log(selectedText,prompt);
       setresponse("Loading...");
       const text = selectedText || fulldoc;
-      const response = await fetch('http://localhost:8000/prompt', {
+      const response = await fetch('https://symmetrical-carnival-pjgpwgvjx7rxf6q4q-8000.app.github.dev/prompt', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ selectedText:text,prompt: prompt }),
